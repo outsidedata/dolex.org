@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Steel Pokemon: Defense vs Speed Tradeoff</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: #0f1117; color: #d1d5db;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+#compound-root {
+  width: 100%; height: 100%;
+  display: grid;
+  grid-template-rows: 3fr 2fr;grid-template-columns:1fr;
+  gap: 12px;
+  padding: 12px;
+}
+#chart-view {
+  min-height: 0; min-width: 0; overflow: hidden;
+  border-radius: 8px;
+}
+#chart-view iframe {
+  width: 100%; height: 100%; border: none;
+  border-radius: 8px;
+}
+#table-view {
+  min-height: 0; min-width: 0; overflow: hidden;
+  border-radius: 8px;
+  background: #0f1117;
+}
+</style>
+</head>
+<body>
+<div id="compound-root">
+  <div id="chart-view"></div>
+  <div id="table-view"></div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+
+function createInteractionBus(interactions) {
+  var highlightCallbacks = [];
+  var clearCallbacks = [];
+  var fields = [];
+
+  // Collect all highlight interaction fields
+  (interactions || []).forEach(function(interaction) {
+    if (interaction.type === 'highlight' && interaction.field) {
+      fields.push(interaction.field);
+    }
+  });
+
+  return {
+    fields: fields,
+
+    highlight: function(row) {
+      highlightCallbacks.forEach(function(cb) { cb(row); });
+    },
+
+    clearHighlight: function() {
+      clearCallbacks.forEach(function(cb) { cb(); });
+    },
+
+    onHighlight: function(cb) {
+      highlightCallbacks.push(cb);
+    },
+
+    onClearHighlight: function(cb) {
+      clearCallbacks.push(cb);
+    },
+
+    matchRow: function(candidateRow, highlightRow) {
+      if (!highlightRow) return false;
+      return fields.some(function(field) {
+        return candidateRow[field] != null &&
+               highlightRow[field] != null &&
+               String(candidateRow[field]) === String(highlightRow[field]);
+      });
+    }
+  };
+}
+
+
+function renderTable(container, data, tableSpec, interactionBus) {
+  tableSpec = tableSpec || {};
+  var columns = tableSpec.columns;
+  var sortState = tableSpec.sort || null;
+  var pageSize = tableSpec.pageSize || 200;
+
+  // Auto-detect columns from data if not specified
+  if (!columns || columns.length === 0) {
+    var keys = data.length > 0 ? Object.keys(data[0]) : [];
+    columns = keys.map(function(k) {
+      return { field: k, title: k };
+    });
+  }
+
+  // Detect numeric columns for right-alignment
+  var numericFields = new Set();
+  if (data.length > 0) {
+    columns.forEach(function(col) {
+      var sample = data.slice(0, 10).map(function(d) { return d[col.field]; });
+      var numCount = sample.filter(function(v) {
+        return v != null && typeof v === 'number' || (typeof v === 'string' && v !== '' && !isNaN(Number(v)));
+      }).length;
+      if (numCount > sample.length * 0.7) numericFields.add(col.field);
+    });
+  }
+
+  function formatCell(value, col) {
+    if (value == null) return '';
+    if (col.format && typeof d3 !== 'undefined' && d3.format) {
+      try { return d3.format(col.format)(Number(value)); } catch(e) {}
+    }
+    if (numericFields.has(col.field) && typeof value === 'number') {
+      if (Math.abs(value) >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+      if (Math.abs(value) >= 1e3) return (value / 1e3).toFixed(1) + 'K';
+      if (Math.abs(value) < 1 && value !== 0) return value.toFixed(2);
+      return value.toLocaleString();
+    }
+    return String(value);
+  }
+
+  function getAlign(col) {
+    if (col.align) return col.align;
+    return numericFields.has(col.field) ? 'right' : 'left';
+  }
+
+  function getWidth(col) {
+    if (typeof col.width === 'number') return col.width + 'px';
+    switch (col.width) {
+      case 'narrow': return '80px';
+      case 'wide': return '200px';
+      case 'medium': default: return 'auto';
+    }
+  }
+
+  var sortedData = data.slice();
+  function applySort() {
+    if (!sortState) return;
+    var field = sortState.field;
+    var dir = sortState.direction === 'asc' ? 1 : -1;
+    sortedData.sort(function(a, b) {
+      var va = a[field], vb = b[field];
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return dir * (va - vb);
+      return dir * String(va).localeCompare(String(vb));
+    });
+  }
+  applySort();
+
+  // Limit rows
+  var displayData = sortedData.slice(0, pageSize);
+
+  function render() {
+    container.innerHTML = '';
+
+    var wrapper = document.createElement('div');
+    wrapper.style.cssText = 'width:100%;height:100%;overflow:auto;';
+
+    var table = document.createElement('table');
+    table.style.cssText =
+      'width:100%;border-collapse:collapse;font-family:Inter,system-ui,sans-serif;' +
+      'font-size:12px;color:#d1d5db;';
+
+    // Header
+    var thead = document.createElement('thead');
+    var headerRow = document.createElement('tr');
+    columns.forEach(function(col) {
+      var th = document.createElement('th');
+      th.textContent = col.title || col.field;
+      var isSorted = sortState && sortState.field === col.field;
+      var arrow = isSorted ? (sortState.direction === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+      th.textContent = (col.title || col.field) + arrow;
+      th.style.cssText =
+        'padding:8px 12px;text-align:' + getAlign(col) + ';border-bottom:2px solid #2d3041;' +
+        'color:#9ca3af;font-weight:600;cursor:pointer;user-select:none;' +
+        'position:sticky;top:0;background:#0f1117;white-space:nowrap;' +
+        'width:' + getWidth(col) + ';';
+      th.addEventListener('click', function() {
+        if (sortState && sortState.field === col.field) {
+          sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortState = { field: col.field, direction: numericFields.has(col.field) ? 'desc' : 'asc' };
+        }
+        applySort();
+        displayData = sortedData.slice(0, pageSize);
+        render();
+      });
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Body
+    var tbody = document.createElement('tbody');
+    displayData.forEach(function(row, rowIdx) {
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-row-index', rowIdx);
+      tr.style.cssText = 'transition:background 0.1s;';
+
+      // Interaction hover
+      tr.addEventListener('mouseenter', function() {
+        tr.style.background = '#1a1d2e';
+        if (interactionBus) interactionBus.highlight(row);
+      });
+      tr.addEventListener('mouseleave', function() {
+        tr.style.background = '';
+        if (interactionBus) interactionBus.clearHighlight();
+      });
+
+      columns.forEach(function(col) {
+        var td = document.createElement('td');
+        td.textContent = formatCell(row[col.field], col);
+        td.style.cssText =
+          'padding:6px 12px;text-align:' + getAlign(col) + ';' +
+          'border-bottom:1px solid #1f2937;white-space:nowrap;';
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    // Row count footer
+    if (data.length > pageSize) {
+      var tfoot = document.createElement('tfoot');
+      var footRow = document.createElement('tr');
+      var footCell = document.createElement('td');
+      footCell.colSpan = columns.length;
+      footCell.style.cssText =
+        'padding:8px 12px;color:#6b7280;font-size:11px;border-top:1px solid #2d3041;';
+      footCell.textContent = 'Showing ' + displayData.length + ' of ' + data.length + ' rows';
+      footRow.appendChild(footCell);
+      tfoot.appendChild(footRow);
+      table.appendChild(tfoot);
+    }
+
+    wrapper.appendChild(table);
+    container.appendChild(wrapper);
+
+    // Store reference for interaction highlighting
+    container._tableBody = tbody;
+    container._tableColumns = columns;
+  }
+
+  render();
+
+  // Interaction bus subscriber: highlight matching rows
+  if (interactionBus) {
+    interactionBus.onHighlight(function(highlightRow) {
+      var tbody = container._tableBody;
+      if (!tbody) return;
+      var rows = tbody.querySelectorAll('tr');
+      rows.forEach(function(tr, i) {
+        var dataRow = displayData[i];
+        if (!dataRow) return;
+        var match = interactionBus.matchRow(dataRow, highlightRow);
+        tr.style.background = match ? '#1a1d2e' : '';
+      });
+    });
+
+    interactionBus.onClearHighlight(function() {
+      var tbody = container._tableBody;
+      if (!tbody) return;
+      var rows = tbody.querySelectorAll('tr');
+      rows.forEach(function(tr) { tr.style.background = ''; });
+    });
+  }
+}
+
+</script>
+
+<script>
+(function() {
+  var data = [{"Pokemon_Name":"Sandshrew","Defense":"90","Speed":"40"},{"Pokemon_Name":"Sandslash","Defense":"120","Speed":"65"},{"Pokemon_Name":"Diglett","Defense":"30","Speed":"90"},{"Pokemon_Name":"Dugtrio","Defense":"60","Speed":"110"},{"Pokemon_Name":"Meowth","Defense":"55","Speed":"40"},{"Pokemon_Name":"Magnemite","Defense":"70","Speed":"45"},{"Pokemon_Name":"Magneton","Defense":"95","Speed":"70"},{"Pokemon_Name":"Forretress","Defense":"140","Speed":"40"},{"Pokemon_Name":"Steelix","Defense":"200","Speed":"30"},{"Pokemon_Name":"Steelix","Defense":"230","Speed":"30"},{"Pokemon_Name":"Scizor","Defense":"100","Speed":"65"},{"Pokemon_Name":"Scizor","Defense":"140","Speed":"75"},{"Pokemon_Name":"Skarmory","Defense":"140","Speed":"70"},{"Pokemon_Name":"Mawile","Defense":"85","Speed":"50"},{"Pokemon_Name":"Mawile","Defense":"125","Speed":"50"},{"Pokemon_Name":"Aron","Defense":"100","Speed":"30"},{"Pokemon_Name":"Lairon","Defense":"140","Speed":"40"},{"Pokemon_Name":"Aggron","Defense":"180","Speed":"50"},{"Pokemon_Name":"Aggron","Defense":"230","Speed":"50"},{"Pokemon_Name":"Beldum","Defense":"80","Speed":"30"},{"Pokemon_Name":"Metang","Defense":"100","Speed":"50"},{"Pokemon_Name":"Metagross","Defense":"130","Speed":"70"},{"Pokemon_Name":"Metagross","Defense":"150","Speed":"110"},{"Pokemon_Name":"Empoleon","Defense":"88","Speed":"60"},{"Pokemon_Name":"Shieldon","Defense":"118","Speed":"30"},{"Pokemon_Name":"Bastiodon","Defense":"168","Speed":"30"},{"Pokemon_Name":"Wormadam","Defense":"95","Speed":"36"},{"Pokemon_Name":"Bronzor","Defense":"86","Speed":"23"},{"Pokemon_Name":"Bronzong","Defense":"116","Speed":"33"},{"Pokemon_Name":"Lucario","Defense":"70","Speed":"90"},{"Pokemon_Name":"Lucario","Defense":"88","Speed":"112"},{"Pokemon_Name":"Magnezone","Defense":"115","Speed":"60"},{"Pokemon_Name":"Magnezone","Defense":"115","Speed":"60"},{"Pokemon_Name":"Probopass","Defense":"145","Speed":"40"},{"Pokemon_Name":"Probopass","Defense":"145","Speed":"40"},{"Pokemon_Name":"Excadrill","Defense":"60","Speed":"88"},{"Pokemon_Name":"Escavalier","Defense":"105","Speed":"20"},{"Pokemon_Name":"Ferroseed","Defense":"91","Speed":"10"},{"Pokemon_Name":"Ferrothorn","Defense":"131","Speed":"20"},{"Pokemon_Name":"Klink","Defense":"70","Speed":"30"},{"Pokemon_Name":"Klang","Defense":"95","Speed":"50"},{"Pokemon_Name":"Klinklang","Defense":"115","Speed":"90"},{"Pokemon_Name":"Stunfisk","Defense":"99","Speed":"32"},{"Pokemon_Name":"Pawniard","Defense":"70","Speed":"60"},{"Pokemon_Name":"Bisharp","Defense":"100","Speed":"70"},{"Pokemon_Name":"Durant","Defense":"112","Speed":"109"},{"Pokemon_Name":"Honedge","Defense":"100","Speed":"28"},{"Pokemon_Name":"Doublade","Defense":"150","Speed":"35"},{"Pokemon_Name":"Aegislash","Defense":"140","Speed":"60"},{"Pokemon_Name":"Aegislash","Defense":"50","Speed":"60"},{"Pokemon_Name":"Sliggoo","Defense":"83","Speed":"40"},{"Pokemon_Name":"Sliggoo","Defense":"83","Speed":"40"},{"Pokemon_Name":"Goodra","Defense":"100","Speed":"60"},{"Pokemon_Name":"Klefki","Defense":"91","Speed":"75"},{"Pokemon_Name":"Togedemaru","Defense":"63","Speed":"96"},{"Pokemon_Name":"Corviknight","Defense":"105","Speed":"67"},{"Pokemon_Name":"Corviknight","Defense":"105","Speed":"67"},{"Pokemon_Name":"Perrserker","Defense":"100","Speed":"50"},{"Pokemon_Name":"Cufant","Defense":"49","Speed":"40"},{"Pokemon_Name":"Copperajah","Defense":"69","Speed":"30"},{"Pokemon_Name":"Copperajah","Defense":"69","Speed":"30"},{"Pokemon_Name":"Duraludon","Defense":"115","Speed":"85"},{"Pokemon_Name":"Duraludon","Defense":"115","Speed":"85"},{"Pokemon_Name":"Tinkatink","Defense":"45","Speed":"58"},{"Pokemon_Name":"Tinkatuff","Defense":"55","Speed":"78"},{"Pokemon_Name":"Tinkaton","Defense":"77","Speed":"94"},{"Pokemon_Name":"Varoom","Defense":"63","Speed":"47"},{"Pokemon_Name":"Revavroom","Defense":"90","Speed":"90"},{"Pokemon_Name":"Orthworm","Defense":"145","Speed":"65"},{"Pokemon_Name":"Kingambit","Defense":"120","Speed":"50"},{"Pokemon_Name":"Iron Treads","Defense":"120","Speed":"106"},{"Pokemon_Name":"Gholdengo","Defense":"95","Speed":"84"},{"Pokemon_Name":"Gholdengo","Defense":"95","Speed":"84"},{"Pokemon_Name":"Archaludon","Defense":"130","Speed":"85"},{"Pokemon_Name":"Iron Crown","Defense":"100","Speed":"98"}];
+  var tableSpec = {"columns":[{"field":"Pokemon_Name","title":"Pokemon Name","align":"left"},{"field":"Defense","title":"Defense","align":"right"},{"field":"Speed","title":"Speed","align":"right"}],"sort":{"field":"Pokemon_Name","direction":"asc"},"pageSize":100};
+  var interactions = [{"type":"highlight","field":"Pokemon_Name"}];
+  var chartHtml = "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n<title>Steel Pokemon: Defense vs Speed Tradeoff<\/title>\n<style>\n*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }\nhtml, body {\n  width: 100%;\n  height: 100%;\n  overflow: hidden;\n  background: #0f1117;\n  color: #d1d5db;\n  font-family: Inter, system-ui, -apple-system, sans-serif;\n}\n#chart {\n  width: 100%;\n  height: 100%;\n  position: relative;\n}\n<\/style>\n<\/head>\n<body>\n<div id=\"chart\"><\/div>\n\n<script src=\"https://d3js.org/d3.v7.min.js\"><\/script>\n\n<script>\nwindow.__SPEC__ = {\"pattern\":\"scatter\",\"title\":\"Steel Pokemon: Defense vs Speed Tradeoff\",\"encoding\":{\"x\":{\"field\":\"Defense\",\"type\":\"quantitative\",\"title\":\"Defense\"},\"y\":{\"field\":\"Speed\",\"type\":\"quantitative\",\"title\":\"Speed\"},\"color\":{\"field\":\"Pokemon_Name\",\"type\":\"nominal\",\"title\":\"Pokemon_Name\"}},\"config\":{\"xField\":\"Defense\",\"yField\":\"Speed\",\"colorField\":\"Pokemon_Name\",\"sizeField\":null,\"dotRadius\":5,\"opacity\":0.7,\"showTrendLine\":false,\"showRegressionLine\":false,\"jitter\":0},\"data\":[{\"Pokemon_Name\":\"Sandshrew\",\"Defense\":\"90\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Sandslash\",\"Defense\":\"120\",\"Speed\":\"65\"},{\"Pokemon_Name\":\"Diglett\",\"Defense\":\"30\",\"Speed\":\"90\"},{\"Pokemon_Name\":\"Dugtrio\",\"Defense\":\"60\",\"Speed\":\"110\"},{\"Pokemon_Name\":\"Meowth\",\"Defense\":\"55\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Magnemite\",\"Defense\":\"70\",\"Speed\":\"45\"},{\"Pokemon_Name\":\"Magneton\",\"Defense\":\"95\",\"Speed\":\"70\"},{\"Pokemon_Name\":\"Forretress\",\"Defense\":\"140\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Steelix\",\"Defense\":\"200\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Steelix\",\"Defense\":\"230\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Scizor\",\"Defense\":\"100\",\"Speed\":\"65\"},{\"Pokemon_Name\":\"Scizor\",\"Defense\":\"140\",\"Speed\":\"75\"},{\"Pokemon_Name\":\"Skarmory\",\"Defense\":\"140\",\"Speed\":\"70\"},{\"Pokemon_Name\":\"Mawile\",\"Defense\":\"85\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Mawile\",\"Defense\":\"125\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Aron\",\"Defense\":\"100\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Lairon\",\"Defense\":\"140\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Aggron\",\"Defense\":\"180\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Aggron\",\"Defense\":\"230\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Beldum\",\"Defense\":\"80\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Metang\",\"Defense\":\"100\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Metagross\",\"Defense\":\"130\",\"Speed\":\"70\"},{\"Pokemon_Name\":\"Metagross\",\"Defense\":\"150\",\"Speed\":\"110\"},{\"Pokemon_Name\":\"Empoleon\",\"Defense\":\"88\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Shieldon\",\"Defense\":\"118\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Bastiodon\",\"Defense\":\"168\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Wormadam\",\"Defense\":\"95\",\"Speed\":\"36\"},{\"Pokemon_Name\":\"Bronzor\",\"Defense\":\"86\",\"Speed\":\"23\"},{\"Pokemon_Name\":\"Bronzong\",\"Defense\":\"116\",\"Speed\":\"33\"},{\"Pokemon_Name\":\"Lucario\",\"Defense\":\"70\",\"Speed\":\"90\"},{\"Pokemon_Name\":\"Lucario\",\"Defense\":\"88\",\"Speed\":\"112\"},{\"Pokemon_Name\":\"Magnezone\",\"Defense\":\"115\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Magnezone\",\"Defense\":\"115\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Probopass\",\"Defense\":\"145\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Probopass\",\"Defense\":\"145\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Excadrill\",\"Defense\":\"60\",\"Speed\":\"88\"},{\"Pokemon_Name\":\"Escavalier\",\"Defense\":\"105\",\"Speed\":\"20\"},{\"Pokemon_Name\":\"Ferroseed\",\"Defense\":\"91\",\"Speed\":\"10\"},{\"Pokemon_Name\":\"Ferrothorn\",\"Defense\":\"131\",\"Speed\":\"20\"},{\"Pokemon_Name\":\"Klink\",\"Defense\":\"70\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Klang\",\"Defense\":\"95\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Klinklang\",\"Defense\":\"115\",\"Speed\":\"90\"},{\"Pokemon_Name\":\"Stunfisk\",\"Defense\":\"99\",\"Speed\":\"32\"},{\"Pokemon_Name\":\"Pawniard\",\"Defense\":\"70\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Bisharp\",\"Defense\":\"100\",\"Speed\":\"70\"},{\"Pokemon_Name\":\"Durant\",\"Defense\":\"112\",\"Speed\":\"109\"},{\"Pokemon_Name\":\"Honedge\",\"Defense\":\"100\",\"Speed\":\"28\"},{\"Pokemon_Name\":\"Doublade\",\"Defense\":\"150\",\"Speed\":\"35\"},{\"Pokemon_Name\":\"Aegislash\",\"Defense\":\"140\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Aegislash\",\"Defense\":\"50\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Sliggoo\",\"Defense\":\"83\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Sliggoo\",\"Defense\":\"83\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Goodra\",\"Defense\":\"100\",\"Speed\":\"60\"},{\"Pokemon_Name\":\"Klefki\",\"Defense\":\"91\",\"Speed\":\"75\"},{\"Pokemon_Name\":\"Togedemaru\",\"Defense\":\"63\",\"Speed\":\"96\"},{\"Pokemon_Name\":\"Corviknight\",\"Defense\":\"105\",\"Speed\":\"67\"},{\"Pokemon_Name\":\"Corviknight\",\"Defense\":\"105\",\"Speed\":\"67\"},{\"Pokemon_Name\":\"Perrserker\",\"Defense\":\"100\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Cufant\",\"Defense\":\"49\",\"Speed\":\"40\"},{\"Pokemon_Name\":\"Copperajah\",\"Defense\":\"69\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Copperajah\",\"Defense\":\"69\",\"Speed\":\"30\"},{\"Pokemon_Name\":\"Duraludon\",\"Defense\":\"115\",\"Speed\":\"85\"},{\"Pokemon_Name\":\"Duraludon\",\"Defense\":\"115\",\"Speed\":\"85\"},{\"Pokemon_Name\":\"Tinkatink\",\"Defense\":\"45\",\"Speed\":\"58\"},{\"Pokemon_Name\":\"Tinkatuff\",\"Defense\":\"55\",\"Speed\":\"78\"},{\"Pokemon_Name\":\"Tinkaton\",\"Defense\":\"77\",\"Speed\":\"94\"},{\"Pokemon_Name\":\"Varoom\",\"Defense\":\"63\",\"Speed\":\"47\"},{\"Pokemon_Name\":\"Revavroom\",\"Defense\":\"90\",\"Speed\":\"90\"},{\"Pokemon_Name\":\"Orthworm\",\"Defense\":\"145\",\"Speed\":\"65\"},{\"Pokemon_Name\":\"Kingambit\",\"Defense\":\"120\",\"Speed\":\"50\"},{\"Pokemon_Name\":\"Iron Treads\",\"Defense\":\"120\",\"Speed\":\"106\"},{\"Pokemon_Name\":\"Gholdengo\",\"Defense\":\"95\",\"Speed\":\"84\"},{\"Pokemon_Name\":\"Gholdengo\",\"Defense\":\"95\",\"Speed\":\"84\"},{\"Pokemon_Name\":\"Archaludon\",\"Defense\":\"130\",\"Speed\":\"85\"},{\"Pokemon_Name\":\"Iron Crown\",\"Defense\":\"100\",\"Speed\":\"98\"}]};\n<\/script>\n\n<script>\n\"use strict\";var __dolex=(()=>{var __defProp=Object.defineProperty;var __getOwnPropDesc=Object.getOwnPropertyDescriptor;var __getOwnPropNames=Object.getOwnPropertyNames;var __hasOwnProp=Object.prototype.hasOwnProperty;var __export=(target,all)=>{for(var name in all)__defProp(target,name,{get:all[name],enumerable:true})};var __copyProps=(to,from,except,desc)=>{if(from&&typeof from===\"object\"||typeof from===\"function\"){for(let key of __getOwnPropNames(from))if(!__hasOwnProp.call(to,key)&&key!==except)__defProp(to,key,{get:()=>from[key],enumerable:!(desc=__getOwnPropDesc(from,key))||desc.enumerable})}return to};var __toCommonJS=mod=>__copyProps(__defProp({},\"__esModule\",{value:true}),mod);var scatter_render_exports={};__export(scatter_render_exports,{renderChart:()=>renderScatter});var categorical=[\"#6280c1\",\"#c99a3e\",\"#48a882\",\"#c46258\",\"#5ea4c8\",\"#9e74bf\",\"#c88450\",\"#3ea898\",\"#b85e78\",\"#85a63e\",\"#807cba\",\"#b09838\"];var sequential={blue:[\"#e8f0fe\",\"#c5d9fc\",\"#9cbcf8\",\"#6e9cf4\",\"#4a7eec\",\"#2f63d9\",\"#1d4cb8\",\"#143893\",\"#0d2668\"],green:[\"#e2f5ec\",\"#b6e6d0\",\"#7ed4ae\",\"#4cc08c\",\"#2ba86f\",\"#1e8d58\",\"#157244\",\"#0d5833\",\"#084024\"],purple:[\"#f0e8ff\",\"#d8c6fd\",\"#bd9efa\",\"#a278f3\",\"#8755e8\",\"#6d3dd1\",\"#5630ab\",\"#402485\",\"#2d1961\"],warm:[\"#fef0e2\",\"#fdd9b4\",\"#fbbd7e\",\"#f79e4d\",\"#ef7e25\",\"#d4620f\",\"#ac4a0a\",\"#843608\",\"#5e2506\"]};var diverging={blueRed:[\"#2166ac\",\"#4393c3\",\"#6db4d5\",\"#a6d1e8\",\"#e0e0e0\",\"#f1b0a0\",\"#e07060\",\"#ca3832\",\"#b2182b\"],greenPurple:[\"#1b7837\",\"#41a055\",\"#73c378\",\"#a8dda0\",\"#e0e0e0\",\"#c4a5d9\",\"#9970be\",\"#7640a0\",\"#5e2d84\"],tealOrange:[\"#0d6b6e\",\"#2a9191\",\"#54b4b0\",\"#92d4cc\",\"#e0e0e0\",\"#f5c28a\",\"#e69b44\",\"#c87422\",\"#a35212\"],redGreen:[\"#b84040\",\"#c85e5e\",\"#d48080\",\"#daa8a8\",\"#c8c8c8\",\"#a0c8a0\",\"#68a868\",\"#489048\",\"#307430\"]};var darkTheme={background:\"#0f1117\",surface:\"#161822\",surfaceRaised:\"#1e2028\",axis:\"#4b5563\",grid:\"#1f2937\",border:\"#2a2d3a\",text:\"#e2e5eb\",textMuted:\"#9ca3af\",textDim:\"#6b7280\",plotArea:\"#13151d\",overlay:\"rgba(0, 0, 0, 0.6)\"};var colorSchemes={\"traffic-light\":[\"#ef4444\",\"#f59e0b\",\"#10b981\"],\"profit-loss\":[\"#ef4444\",\"#6b7280\",\"#10b981\"],temperature:[\"#3b82f6\",\"#9ca3af\",\"#f59e0b\"]};var DARK_BG=darkTheme.background;var AXIS_COLOR=darkTheme.axis;var GRID_COLOR=darkTheme.grid;var TEXT_COLOR=darkTheme.text;var TEXT_MUTED=darkTheme.textMuted;var DEFAULT_MARGINS={top:40,right:30,bottom:50,left:60};function createSvg(container,spec,marginOverrides){const margin={...DEFAULT_MARGINS,...marginOverrides};const width=container.clientWidth||800;const height=container.clientHeight||500;const innerWidth=width-margin.left-margin.right;const innerHeight=height-margin.top-margin.bottom;const svg=d3.select(container).append(\"svg\").attr(\"width\",width).attr(\"height\",height).style(\"background\",DARK_BG).style(\"border-radius\",\"8px\");if(spec.title){const titleEl=svg.append(\"text\").attr(\"x\",width/2).attr(\"y\",24).attr(\"text-anchor\",\"middle\").attr(\"fill\",TEXT_COLOR).attr(\"font-size\",\"14px\").attr(\"font-weight\",\"600\").attr(\"font-family\",\"Inter, system-ui, sans-serif\").text(spec.title);truncateTitle(titleEl,spec.title,width-20)}const g=svg.append(\"g\").attr(\"transform\",`translate(${margin.left},${margin.top})`);return{svg,g,dims:{width,height,innerWidth,innerHeight,margin}}}var PALETTE_MAP={categorical,...sequential,...diverging,...colorSchemes};function resolvePalette(name){const palette=PALETTE_MAP[name];return palette?[...palette]:null}function isSequentialPalette(name){return!!name&&name in sequential}function isDivergingPalette(name){return!!name&&name in diverging}function buildColorScale(encoding,data,valueField){if(!encoding||!encoding.field){return()=>categorical[0]}const field=encoding.field;if(encoding.highlight&&encoding.highlight.values.length>0){const normalize=v=>String(v).trim().toLowerCase();const dataValues=new Set(data.map(d=>normalize(d[field])));const hasMatchingValues=encoding.highlight.values.some(v=>dataValues.has(normalize(v)));if(hasMatchingValues){const highlightSet=new Set(encoding.highlight.values.map(v=>normalize(v)));const highlightColors=Array.isArray(encoding.highlight.color)?encoding.highlight.color:encoding.highlight.color?[encoding.highlight.color]:[categorical[0]];const mutedColor=encoding.highlight.mutedColor||\"#6b7280\";const mutedOpacity=encoding.highlight.mutedOpacity??1;return value=>{if(highlightSet.has(normalize(value))){const idx=encoding.highlight.values.findIndex(v=>normalize(v)===normalize(value));return highlightColors[idx%highlightColors.length]}if(mutedOpacity<1){const hex=mutedColor.replace(\"#\",\"\");const r=parseInt(hex.substring(0,2),16);const g=parseInt(hex.substring(2,4),16);const b=parseInt(hex.substring(4,6),16);return`rgba(${r}, ${g}, ${b}, ${mutedOpacity})`}return mutedColor}}}if(encoding.palette){const palette2=resolvePalette(encoding.palette);if(palette2){if(isDivergingPalette(encoding.palette)&&encoding.type===\"quantitative\"){const values=data.map(d=>Number(d[field]));const maxAbs=Math.max(Math.abs(d3.min(values)),Math.abs(d3.max(values)))||1;const mid=Math.floor(palette2.length/2);return d3.scaleLinear().domain([-maxAbs,0,maxAbs]).range([palette2[0],palette2[mid],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb).clamp(true)}if((isSequentialPalette(encoding.palette)||isDivergingPalette(encoding.palette))&&valueField){const valueExtent=d3.extent(data,d=>Number(d[valueField]));const colorScale=d3.scaleLinear().domain([valueExtent[0],valueExtent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb);const categoryToValue=new Map(data.map(d=>[d[field],Number(d[valueField])]));return category=>{const value=categoryToValue.get(category);return value!==void 0?colorScale(value):palette2[0]}}if(encoding.type===\"quantitative\"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleLinear().domain([extent[0],extent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb)}const domain2=[...new Set(data.map(d=>d[field]))];return d3.scaleOrdinal().domain(domain2).range(palette2)}}if(encoding.scale?.domain&&encoding.scale?.range){if(encoding.type===\"quantitative\"){return d3.scaleLinear().domain(encoding.scale.domain).range(encoding.scale.range).interpolate(d3.interpolateRgb)}return d3.scaleOrdinal().domain(encoding.scale.domain).range(encoding.scale.range)}if(encoding.type===\"quantitative\"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleSequential(d3.interpolateViridis).domain(extent)}const domain=[...new Set(data.map(d=>d[field]))];let palette=[...categorical];if(domain.length>palette.length){const extra=d3.quantize(d3.interpolateRainbow,domain.length-palette.length+1);palette=palette.concat(extra)}return d3.scaleOrdinal().domain(domain).range(palette)}function getAdaptiveTickCount(availableSpace,minSpacing=60){return Math.max(3,Math.floor(availableSpace/minSpacing))}function truncateTitle(textEl,fullText,maxWidth){const node=textEl.node();if(!node||!node.getComputedTextLength)return;if(node.getComputedTextLength()<=maxWidth)return;let lo=0;let hi=fullText.length;while(lo<hi){const mid=lo+hi+1>>1;node.textContent=fullText.slice(0,mid)+\"\\u2026\";if(node.getComputedTextLength()<=maxWidth){lo=mid}else{hi=mid-1}}node.textContent=lo>0?fullText.slice(0,lo)+\"\\u2026\":\"\\u2026\";textEl.append(\"title\").text(fullText)}function styleAxis(axis){axis.selectAll(\".domain\").attr(\"stroke\",AXIS_COLOR).attr(\"stroke-width\",.5);axis.selectAll(\".tick line\").attr(\"stroke\",GRID_COLOR).attr(\"stroke-width\",.5).attr(\"stroke-dasharray\",\"2,2\");axis.selectAll(\".tick text\").attr(\"fill\",TEXT_MUTED).attr(\"font-size\",\"11px\").attr(\"font-family\",\"Inter, system-ui, sans-serif\");fixTickLabels(axis)}function fixTickLabels(axis){const ticks=axis.selectAll(\".tick text\");const nodes=[];ticks.each(function(){nodes.push(this)});if(nodes.length<2)return;const texts=nodes.map(n=>n.textContent||\"\");const uniqueTexts=new Set(texts);if(uniqueTexts.size<Math.min(nodes.length,3)){const values=[];ticks.each(function(d){values.push(Number(d))});const validValues=values.filter(v=>!isNaN(v));if(validValues.length<2)return;const min=Math.min(...validValues);const max=Math.max(...validValues);const span=max-min;if(span>0){const precision=span>=1?1:Math.max(2,Math.ceil(-Math.log10(span))+2);const fmt=v=>{if(Math.abs(v)>=1e6)return(v/1e6).toFixed(1)+\"M\";if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+\"K\";if(Number.isInteger(v)&&Math.abs(v)<1e3)return v.toFixed(0);return v.toFixed(precision)};ticks.each(function(d){const v=Number(d);if(!isNaN(v))this.textContent=fmt(v)})}const reformattedTexts=nodes.map(n=>n.textContent||\"\");const seen=new Set;reformattedTexts.forEach((t,i)=>{if(seen.has(t)){nodes[i].style.display=\"none\";const line=nodes[i].parentNode?.querySelector(\"line\");if(line)line.style.display=\"none\"}else{seen.add(t)}})}}var tooltipEl=null;var tooltipContainer=null;function createTooltip(container){tooltipContainer=container;if(tooltipEl&&document.body.contains(tooltipEl)){return tooltipEl}tooltipEl=document.createElement(\"div\");tooltipEl.style.cssText=`\n    position: fixed;\n    pointer-events: none;\n    background: #1e2028;\n    color: ${TEXT_COLOR};\n    padding: 8px 12px;\n    border-radius: 6px;\n    font-size: 12px;\n    font-family: Inter, system-ui, sans-serif;\n    box-shadow: 0 4px 12px rgba(0,0,0,0.5);\n    border: 1px solid #2d3041;\n    z-index: 10000;\n    opacity: 0;\n    transition: opacity 0.15s;\n    max-width: 300px;\n    line-height: 1.5;\n  `;document.body.appendChild(tooltipEl);return tooltipEl}function positionTooltip(tooltip,event){const gap=12;const tw=tooltip.offsetWidth;const th=tooltip.offsetHeight;const vh=window.innerHeight;const rect=tooltipContainer?.getBoundingClientRect();const midX=rect?rect.left+rect.width/2:window.innerWidth/2;let left=event.clientX>midX?event.clientX-tw-gap:event.clientX+gap;let top=event.clientY-gap;if(top+th>vh)top=event.clientY-th-gap;if(left<0)left=0;if(top<0)top=0;tooltip.style.left=left+\"px\";tooltip.style.top=top+\"px\"}function showTooltip(tooltip,html,event){tooltip.innerHTML=html;tooltip.style.opacity=\"1\";positionTooltip(tooltip,event)}function hideTooltip(tooltip){tooltip.style.opacity=\"0\"}function smartTruncateLabels(labels,maxLen){if(labels.every(l=>l.length<=maxLen))return labels;const prefixLen=findCommonAffixLength(labels,\"prefix\");const suffixLen=findCommonAffixLength(labels,\"suffix\");const hasSharedAffix=prefixLen+suffixLen>5;if(hasSharedAffix){return labels.map(l=>{if(l.length<=maxLen)return l;const uniquePart=l.slice(prefixLen,l.length-suffixLen||void 0);if(uniquePart.length<=maxLen-2){return\"\\u2026\"+uniquePart+\"\\u2026\"}const keep=maxLen-2;return\"\\u2026\"+uniquePart.slice(0,keep)+\"\\u2026\"})}return labels.map(l=>{if(l.length<=maxLen)return l;const keep=maxLen-1;const front=Math.ceil(keep*.5);const back=keep-front;return back>0?l.slice(0,front)+\"\\u2026\"+l.slice(-back):l.slice(0,keep)+\"\\u2026\"})}function findCommonAffixLength(strings,direction){if(strings.length<=1)return 0;const get=direction===\"prefix\"?(s,i)=>s[i]:(s,i)=>s[s.length-1-i];const minLen=Math.min(...strings.map(s=>s.length));let len=0;for(let i=0;i<minLen;i++){const ch=get(strings[0],i);if(strings.every(s=>get(s,i)===ch)){len++}else{break}}return len}function createLegend(source,options){const shape=options?.shape??\"square\";const callbacks=options?.callbacks;let entries;if(Array.isArray(source)&&source.length>0&&source[0]?.label!==void 0){entries=source}else{const domain=source.domain?.()??[];entries=domain.map(label=>({label:String(label),color:source(label)}))}if(!entries.length){return document.createElement(\"div\")}const maxItems=options?.maxItems??12;let overflowCount=0;if(entries.length>maxItems){overflowCount=entries.length-(maxItems-1);entries=entries.slice(0,maxItems-1)}const maxLabelLen=20;const displayLabels=smartTruncateLabels(entries.map(e=>e.label),maxLabelLen);const legend=document.createElement(\"div\");legend.style.cssText=`\n    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px;\n    padding: 6px 12px 8px; font-family: Inter, system-ui, sans-serif;\n    font-size: 11px; line-height: 1;\n  `;entries.forEach((entry,idx)=>{const item=document.createElement(\"div\");item.style.cssText=callbacks?\"display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; transition: opacity 0.15s;\":\"display: flex; align-items: center; gap: 5px; white-space: nowrap;\";item.setAttribute(\"data-series\",entry.label);const swatch=document.createElement(\"span\");if(shape===\"circle\"){swatch.style.cssText=`\n        width: 8px; height: 8px; border-radius: 50%;\n        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;\n      `}else if(shape===\"line\"){swatch.style.cssText=`\n        width: 16px; height: 3px; border-radius: 1px;\n        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;\n      `}else if(shape===\"line-dot\"){swatch.style.cssText=`\n        width: 16px; height: 2px; border-radius: 1px;\n        background: ${entry.color}; flex-shrink: 0; position: relative;\n        transition: transform 0.15s;\n      `;const dot=document.createElement(\"span\");dot.style.cssText=`\n        position: absolute; top: 50%; left: 50%;\n        transform: translate(-50%, -50%);\n        width: 6px; height: 6px; border-radius: 50%;\n        background: ${entry.color}; border: 1px solid ${DARK_BG};\n      `;swatch.appendChild(dot)}else{swatch.style.cssText=`\n        width: 10px; height: 10px; border-radius: 2px;\n        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;\n      `}const text=document.createElement(\"span\");text.style.color=TEXT_MUTED;text.textContent=displayLabels[idx];if(entry.label.length>maxLabelLen)text.title=entry.label;item.appendChild(swatch);item.appendChild(text);if(entry.extra){const extra=document.createElement(\"span\");extra.style.color=TEXT_MUTED;extra.style.opacity=\"0.7\";extra.textContent=entry.extra;item.appendChild(extra)}if(callbacks){item.addEventListener(\"mouseenter\",()=>{swatch.style.transform=shape===\"line\"||shape===\"line-dot\"?\"scaleY(2)\":\"scale(1.4)\";callbacks.onHover?.(entry.label)});item.addEventListener(\"mouseleave\",()=>{swatch.style.transform=\"\";callbacks.onLeave?.()})}legend.appendChild(item)});if(overflowCount>0){const more=document.createElement(\"div\");more.style.cssText=\"display: flex; align-items: center; gap: 5px; white-space: nowrap;\";const moreText=document.createElement(\"span\");moreText.style.cssText=`color: ${TEXT_MUTED}; opacity: 0.6; font-style: italic;`;moreText.textContent=`+${overflowCount} more`;more.appendChild(moreText);legend.appendChild(more)}return legend}function formatValue(v){if(Math.abs(v)>=1e12)return(v/1e12).toFixed(1)+\"T\";if(Math.abs(v)>=1e9)return(v/1e9).toFixed(1)+\"B\";if(Math.abs(v)>=1e6)return(v/1e6).toFixed(1)+\"M\";if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+\"K\";if(Math.abs(v)<1&&v!==0){const precision=Math.max(2,Math.ceil(-Math.log10(Math.abs(v)))+1);return v.toFixed(Math.min(precision,6))}return Number.isInteger(v)?v.toFixed(0):v.toFixed(1)}function renderScatter(container,spec){const{config,encoding,data}=spec;const xField=config.xField||encoding.x?.field;const yField=config.yField||encoding.y?.field;const colorField=config.colorField||encoding.color?.field||null;const sizeField=config.sizeField||encoding.size?.field||null;const baseRadius=config.dotRadius??5;const opacity=config.opacity??.7;const hasLegend=colorField!==null;container.innerHTML=\"\";container.style.display=\"flex\";container.style.flexDirection=\"column\";container.style.overflow=\"hidden\";const chartWrapper=document.createElement(\"div\");chartWrapper.style.cssText=\"flex: 1; min-height: 0;\";container.appendChild(chartWrapper);const{svg,g,dims}=createSvg(chartWrapper,spec,{right:30});const tooltip=createTooltip(container);const validData=data.filter(d=>{const xVal=Number(d[xField]);const yVal=Number(d[yField]);return isFinite(xVal)&&isFinite(yVal)});if(validData.length===0){container.innerHTML=`<div style=\"display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:14px;font-family:Inter,system-ui,sans-serif;background:#0f1117;border-radius:8px;\">No valid numeric data for scatter plot<\/div>`;return}const xValues=validData.map(d=>Number(d[xField]));const yValues=validData.map(d=>Number(d[yField]));const xExtent=d3.extent(xValues);const yExtent=d3.extent(yValues);const xPad=(xExtent[1]-xExtent[0])*.05||1;const yPad=(yExtent[1]-yExtent[0])*.05||1;const xScale=d3.scaleLinear().domain([xExtent[0]-xPad,xExtent[1]+xPad]).range([0,dims.innerWidth]).nice();const yScale=d3.scaleLinear().domain([yExtent[0]-yPad,yExtent[1]+yPad]).range([dims.innerHeight,0]).nice();const xTickCount=getAdaptiveTickCount(dims.innerWidth);const yTickCount=getAdaptiveTickCount(dims.innerHeight,40);const xAxis=g.append(\"g\").attr(\"class\",\"x-axis\").attr(\"transform\",`translate(0,${dims.innerHeight})`).call(d3.axisBottom(xScale).ticks(xTickCount).tickSize(-dims.innerHeight).tickPadding(8).tickFormat(d=>formatValue(d)));styleAxis(xAxis);const yAxis=g.append(\"g\").attr(\"class\",\"y-axis\").call(d3.axisLeft(yScale).ticks(yTickCount).tickSize(-dims.innerWidth).tickPadding(8).tickFormat(d=>formatValue(d)));styleAxis(yAxis);const colorScale=buildColorScale(encoding.color,validData);let sizeScale=()=>baseRadius;if(sizeField){const sizeExtent=d3.extent(validData,d=>Number(d[sizeField]));const maxBubbleRadius=Math.min(dims.innerWidth,dims.innerHeight)*.06;const sizeRange=encoding.size?.range||[3,20];const clampedRange=[Math.min(sizeRange[0],maxBubbleRadius),Math.min(sizeRange[1],maxBubbleRadius)];sizeScale=d3.scaleSqrt().domain(sizeExtent).range(clampedRange)}const pointDensity=validData.length/(dims.innerWidth*dims.innerHeight/1e4);let dotRadius=baseRadius;if(!sizeField){if(pointDensity>5)dotRadius=Math.max(2,baseRadius-2);else if(pointDensity>2)dotRadius=Math.max(3,baseRadius-1)}const jitter=config.jitter??0;const pointPositions=validData.map((d,i)=>{const xBase=xScale(Number(d[xField]));const yBase=yScale(Number(d[yField]));return{d,i,cx:jitter?xBase+(seededJitter(i,0)-.5)*jitter:xBase,cy:jitter?yBase+(seededJitter(i,1)-.5)*jitter:yBase,r:sizeField?sizeScale(Number(d[sizeField])):dotRadius}});const delaunay=d3.Delaunay.from(pointPositions,p=>p.cx,p=>p.cy);let activeIdx=-1;g.append(\"rect\").attr(\"class\",\"voronoi-overlay\").attr(\"width\",dims.innerWidth).attr(\"height\",dims.innerHeight).attr(\"fill\",\"transparent\").attr(\"cursor\",\"crosshair\").on(\"mousemove\",function(event){const[mx,my]=d3.pointer(event,g.node());const idx=delaunay.find(mx,my);if(idx===activeIdx){positionTooltip(tooltip,event);return}if(activeIdx>=0){const prev=pointPositions[activeIdx];g.selectAll(\".dot\").filter((_,j)=>j===prev.i).attr(\"r\",prev.r).attr(\"opacity\",opacity)}activeIdx=idx;const p=pointPositions[idx];g.selectAll(\".dot\").filter((_,j)=>j===p.i).attr(\"r\",p.r*1.5).attr(\"opacity\",1);let html=`<strong>${encoding.x?.title||xField}<\/strong>: ${formatValue(Number(p.d[xField]))}<br/><strong>${encoding.y?.title||yField}<\/strong>: ${formatValue(Number(p.d[yField]))}`;if(colorField)html+=`<br/>${colorField}: ${p.d[colorField]}`;if(sizeField)html+=`<br/>${sizeField}: ${formatValue(Number(p.d[sizeField]))}`;showTooltip(tooltip,html,event)}).on(\"mouseleave\",function(){if(activeIdx>=0){const prev=pointPositions[activeIdx];g.selectAll(\".dot\").filter((_,j)=>j===prev.i).attr(\"r\",prev.r).attr(\"opacity\",opacity);activeIdx=-1}hideTooltip(tooltip)});g.selectAll(\".dot\").data(pointPositions).join(\"circle\").attr(\"class\",\"dot\").attr(\"cx\",p=>p.cx).attr(\"cy\",p=>p.cy).attr(\"r\",p=>p.r).attr(\"fill\",p=>colorField?colorScale(p.d[colorField]):categorical[0]).attr(\"opacity\",opacity).attr(\"stroke\",DARK_BG).attr(\"stroke-width\",1).attr(\"pointer-events\",\"none\");if(xExtent[0]===xExtent[1]&&yExtent[0]===yExtent[1]&&validData.length>1){g.append(\"text\").attr(\"x\",xScale(xExtent[0])).attr(\"y\",yScale(yExtent[0])-20).attr(\"text-anchor\",\"middle\").attr(\"fill\",TEXT_MUTED).attr(\"font-size\",\"11px\").attr(\"font-family\",\"Inter, system-ui, sans-serif\").attr(\"pointer-events\",\"none\").text(`${validData.length} points at (${formatValue(xExtent[0])}, ${formatValue(yExtent[0])})`)}if(config.showTrendLine||config.showRegressionLine){const validData2=data.map(d=>({x:Number(d[xField]),y:Number(d[yField])})).filter(d=>!isNaN(d.x)&&!isNaN(d.y));if(validData2.length>=2){const n=validData2.length;const sumX=validData2.reduce((s,d)=>s+d.x,0);const sumY=validData2.reduce((s,d)=>s+d.y,0);const sumXY=validData2.reduce((s,d)=>s+d.x*d.y,0);const sumX2=validData2.reduce((s,d)=>s+d.x*d.x,0);const denom=n*sumX2-sumX*sumX;if(Math.abs(denom)>1e-10){const slope=(n*sumXY-sumX*sumY)/denom;const intercept=(sumY-slope*sumX)/n;const x1=xExtent[0];const x2=xExtent[1];g.append(\"line\").attr(\"x1\",xScale(x1)).attr(\"y1\",yScale(slope*x1+intercept)).attr(\"x2\",xScale(x2)).attr(\"y2\",yScale(slope*x2+intercept)).attr(\"stroke\",\"#f59e0b\").attr(\"stroke-width\",1.5).attr(\"stroke-dasharray\",\"6,4\").attr(\"opacity\",.7).attr(\"pointer-events\",\"none\")}}}if(hasLegend){const legendDiv=createLegend(colorScale,{shape:\"circle\",callbacks:{onHover:category=>{g.selectAll(\".dot\").each(function(_,j){const p=pointPositions[j];const isMatch=p.d[colorField]===category;d3.select(this).attr(\"opacity\",isMatch?1:.08).attr(\"r\",isMatch?p.r*1.3:p.r)})},onLeave:()=>{g.selectAll(\".dot\").each(function(_,j){const p=pointPositions[j];d3.select(this).attr(\"opacity\",opacity).attr(\"r\",p.r)})}}});container.appendChild(legendDiv)}}function seededJitter(index,axis){let s=(index+1)*16807+axis*12345;s=(s*16807+0)%2147483647;return(s-1)/2147483646}return __toCommonJS(scatter_render_exports);})();\n\nvar renderChart = __dolex.renderChart;\n<\/script>\n\n<script>\ndocument.addEventListener('DOMContentLoaded', function() {\n  var container = document.getElementById('chart');\n  var spec = window.__SPEC__;\n\n  if (!spec || !spec.data || !spec.data.length) {\n    container.innerHTML = '<p style=\"color:#ef4444;padding:20px;\">No data provided<\/p>';\n    return;\n  }\n\n  var lastWidth = 0;\n\n  function doRender() {\n    try {\n      container.innerHTML = '';\n      renderChart(container, spec);\n      lastWidth = container.clientWidth;\n      try {\n        var h = document.documentElement.scrollHeight || document.body.scrollHeight;\n        if (h > 0 && window.parent !== window) {\n          window.parent.postMessage({ type: 'dolex-resize', height: h }, '*');\n        }\n      } catch(e) {}\n    } catch (err) {\n      console.error('Render error:', err);\n      container.innerHTML =\n        '<div style=\"color:#ef4444;padding:20px;font-family:monospace;\">' +\n        '<p><strong>Render error:<\/strong> ' + spec.pattern + '<\/p>' +\n        '<pre style=\"font-size:11px;opacity:0.8;white-space:pre-wrap;\">' +\n        err.message + '\\n' + err.stack + '<\/pre><\/div>';\n    }\n  }\n\n  requestAnimationFrame(doRender);\n\n  var resizeTimer;\n  var ro = new ResizeObserver(function(entries) {\n    var w = entries[0].contentRect.width;\n    if (w > 0 && Math.abs(w - lastWidth) > 20) {\n      clearTimeout(resizeTimer);\n      resizeTimer = setTimeout(doRender, 150);\n    }\n  });\n  ro.observe(container);\n});\n<\/script>\n<\/body>\n<\/html>";
+
+  var bus = createInteractionBus(interactions);
+
+  // ── Render chart view ───────────────────────────────────────────────────
+  var chartContainer = document.getElementById('chart-view');
+  if (chartHtml) {
+    var iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:100%;height:100%;border:none;border-radius:8px;';
+    iframe.srcdoc = chartHtml;
+    chartContainer.appendChild(iframe);
+
+    // Wire interaction bus into the chart iframe
+    iframe.addEventListener('load', function() {
+      var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      var iframeWin = iframe.contentWindow;
+
+      // Inject highlight behavior into chart SVG elements
+      function wireChartInteractions() {
+        if (!iframeDoc) return;
+        var svg = iframeDoc.querySelector('svg');
+        if (!svg) return;
+
+        // Find hoverable elements (rects, circles, paths with data)
+        var elements = svg.querySelectorAll('rect[data-value], circle[data-value], rect.bar, circle.dot, path.line-segment');
+
+        // Also look for common D3 rendered elements
+        var allRects = svg.querySelectorAll('rect');
+        var allCircles = svg.querySelectorAll('circle');
+
+        // Attach listeners to all interactive elements
+        [].forEach.call(allRects, function(el) {
+          el.addEventListener('mouseenter', function() {
+            // Try to find which data row this element corresponds to
+            var datum = findDatum(el, data, bus.fields);
+            if (datum) bus.highlight(datum);
+          });
+          el.addEventListener('mouseleave', function() {
+            bus.clearHighlight();
+          });
+        });
+
+        [].forEach.call(allCircles, function(el) {
+          el.addEventListener('mouseenter', function() {
+            var datum = findDatum(el, data, bus.fields);
+            if (datum) bus.highlight(datum);
+          });
+          el.addEventListener('mouseleave', function() {
+            bus.clearHighlight();
+          });
+        });
+
+        // Listen for highlight events from the bus to highlight chart elements
+        bus.onHighlight(function(row) {
+          [].forEach.call(allRects, function(el) {
+            var datum = findDatum(el, data, bus.fields);
+            if (datum && bus.matchRow(datum, row)) {
+              el.style.opacity = '1';
+              el.style.filter = 'brightness(1.3)';
+            } else if (el.getAttribute('fill') && el.getAttribute('fill') !== 'none') {
+              el.style.opacity = '0.3';
+              el.style.filter = '';
+            }
+          });
+          [].forEach.call(allCircles, function(el) {
+            var datum = findDatum(el, data, bus.fields);
+            if (datum && bus.matchRow(datum, row)) {
+              el.style.opacity = '1';
+              el.style.filter = 'brightness(1.3)';
+            } else if (el.getAttribute('fill') && el.getAttribute('fill') !== 'none' && el.getAttribute('r')) {
+              el.style.opacity = '0.3';
+              el.style.filter = '';
+            }
+          });
+        });
+
+        bus.onClearHighlight(function() {
+          [].forEach.call(allRects, function(el) {
+            el.style.opacity = '';
+            el.style.filter = '';
+          });
+          [].forEach.call(allCircles, function(el) {
+            el.style.opacity = '';
+            el.style.filter = '';
+          });
+        });
+      }
+
+      // Data-element matching heuristic
+      function findDatum(el, data, fields) {
+        // Try to match element text content or position to data
+        // This uses a heuristic: check the element's __data__ if D3 bound it
+        if (iframeWin && iframeWin.d3) {
+          var d3Data = iframeWin.d3.select(el).datum();
+          if (d3Data && typeof d3Data === 'object') return d3Data;
+        }
+        return null;
+      }
+
+      // D3 renders async, wait a tick
+      setTimeout(wireChartInteractions, 200);
+    });
+  }
+
+  // ── Render table view ──────────────────────────────────────────────────
+  var tableContainer = document.getElementById('table-view');
+  renderTable(tableContainer, data, tableSpec, bus);
+})();
+</script>
+</body>
+</html>

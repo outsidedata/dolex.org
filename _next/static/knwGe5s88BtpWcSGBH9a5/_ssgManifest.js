@@ -1,1 +1,0 @@
-self.__SSG_MANIFEST=new Set(["\u002Fgraphs\u002F[pattern]","\u002Fpatterns\u002F[patternId]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()

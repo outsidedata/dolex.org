@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Best-Selling Japanese Models</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f1117;
+  color: #d1d5db;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+#chart {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+</style>
+</head>
+<body>
+<div id="chart"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+window.__SPEC__ = {"pattern":"treemap","title":"Best-Selling Japanese Models","data":[{"make":"Nissan","model":"Altima","sales":19349},{"make":"Toyota","model":"Camry","sales":12545},{"make":"Honda","model":"Accord","sales":9127},{"make":"Honda","model":"Civic","sales":7433},{"make":"Toyota","model":"Corolla","sales":7354},{"make":"Nissan","model":"Maxima","sales":6611},{"make":"Nissan","model":"Rogue","sales":5589},{"make":"Nissan","model":"Sentra","sales":5465},{"make":"Honda","model":"Odyssey","sales":3500},{"make":"Honda","model":"CR-V","sales":3265},{"make":"Toyota","model":"RAV4","sales":3209},{"make":"Nissan","model":"Versa","sales":3092}],"encoding":{"size":{"field":"sales","type":"quantitative","title":"sales"},"color":{"field":"make","type":"nominal","title":"make"},"label":{"field":"model","type":"nominal"}},"config":{"categoryField":"make","valueField":"sales","parentField":"make","childField":"model","showLabels":true,"padding":2,"borderWidth":1,"subtitle":"Top 12 models from Toyota, Honda, and Nissan"}};
+</script>
+
+<script>
+"use strict";var __dolex=(()=>{var __defProp=Object.defineProperty;var __getOwnPropDesc=Object.getOwnPropertyDescriptor;var __getOwnPropNames=Object.getOwnPropertyNames;var __hasOwnProp=Object.prototype.hasOwnProperty;var __export=(target,all)=>{for(var name in all)__defProp(target,name,{get:all[name],enumerable:true})};var __copyProps=(to,from,except,desc)=>{if(from&&typeof from==="object"||typeof from==="function"){for(let key of __getOwnPropNames(from))if(!__hasOwnProp.call(to,key)&&key!==except)__defProp(to,key,{get:()=>from[key],enumerable:!(desc=__getOwnPropDesc(from,key))||desc.enumerable})}return to};var __toCommonJS=mod=>__copyProps(__defProp({},"__esModule",{value:true}),mod);var treemap_render_exports={};__export(treemap_render_exports,{renderChart:()=>renderTreemap});var categorical=["#6280c1","#c99a3e","#48a882","#c46258","#5ea4c8","#9e74bf","#c88450","#3ea898","#b85e78","#85a63e","#807cba","#b09838"];var sequential={blue:["#e8f0fe","#c5d9fc","#9cbcf8","#6e9cf4","#4a7eec","#2f63d9","#1d4cb8","#143893","#0d2668"],green:["#e2f5ec","#b6e6d0","#7ed4ae","#4cc08c","#2ba86f","#1e8d58","#157244","#0d5833","#084024"],purple:["#f0e8ff","#d8c6fd","#bd9efa","#a278f3","#8755e8","#6d3dd1","#5630ab","#402485","#2d1961"],warm:["#fef0e2","#fdd9b4","#fbbd7e","#f79e4d","#ef7e25","#d4620f","#ac4a0a","#843608","#5e2506"]};var diverging={blueRed:["#2166ac","#4393c3","#6db4d5","#a6d1e8","#e0e0e0","#f1b0a0","#e07060","#ca3832","#b2182b"],greenPurple:["#1b7837","#41a055","#73c378","#a8dda0","#e0e0e0","#c4a5d9","#9970be","#7640a0","#5e2d84"],tealOrange:["#0d6b6e","#2a9191","#54b4b0","#92d4cc","#e0e0e0","#f5c28a","#e69b44","#c87422","#a35212"],redGreen:["#b84040","#c85e5e","#d48080","#daa8a8","#c8c8c8","#a0c8a0","#68a868","#489048","#307430"]};var darkTheme={background:"#0f1117",surface:"#161822",surfaceRaised:"#1e2028",axis:"#4b5563",grid:"#1f2937",border:"#2a2d3a",text:"#e2e5eb",textMuted:"#9ca3af",textDim:"#6b7280",plotArea:"#13151d",overlay:"rgba(0, 0, 0, 0.6)"};var colorSchemes={"traffic-light":["#ef4444","#f59e0b","#10b981"],"profit-loss":["#ef4444","#6b7280","#10b981"],temperature:["#3b82f6","#9ca3af","#f59e0b"]};var DARK_BG=darkTheme.background;var AXIS_COLOR=darkTheme.axis;var GRID_COLOR=darkTheme.grid;var TEXT_COLOR=darkTheme.text;var TEXT_MUTED=darkTheme.textMuted;var PALETTE_MAP={categorical,...sequential,...diverging,...colorSchemes};function resolvePalette(name){const palette=PALETTE_MAP[name];return palette?[...palette]:null}function isSequentialPalette(name){return!!name&&name in sequential}function isDivergingPalette(name){return!!name&&name in diverging}function buildColorScale(encoding,data,valueField){if(!encoding||!encoding.field){return()=>categorical[0]}const field=encoding.field;if(encoding.highlight&&encoding.highlight.values.length>0){const normalize=v=>String(v).trim().toLowerCase();const dataValues=new Set(data.map(d=>normalize(d[field])));const hasMatchingValues=encoding.highlight.values.some(v=>dataValues.has(normalize(v)));if(hasMatchingValues){const highlightSet=new Set(encoding.highlight.values.map(v=>normalize(v)));const highlightColors=Array.isArray(encoding.highlight.color)?encoding.highlight.color:encoding.highlight.color?[encoding.highlight.color]:[categorical[0]];const mutedColor=encoding.highlight.mutedColor||"#6b7280";const mutedOpacity=encoding.highlight.mutedOpacity??1;return value=>{if(highlightSet.has(normalize(value))){const idx=encoding.highlight.values.findIndex(v=>normalize(v)===normalize(value));return highlightColors[idx%highlightColors.length]}if(mutedOpacity<1){const hex=mutedColor.replace("#","");const r=parseInt(hex.substring(0,2),16);const g=parseInt(hex.substring(2,4),16);const b=parseInt(hex.substring(4,6),16);return`rgba(${r}, ${g}, ${b}, ${mutedOpacity})`}return mutedColor}}}if(encoding.palette){const palette2=resolvePalette(encoding.palette);if(palette2){if(isDivergingPalette(encoding.palette)&&encoding.type==="quantitative"){const values=data.map(d=>Number(d[field]));const maxAbs=Math.max(Math.abs(d3.min(values)),Math.abs(d3.max(values)))||1;const mid=Math.floor(palette2.length/2);return d3.scaleLinear().domain([-maxAbs,0,maxAbs]).range([palette2[0],palette2[mid],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb).clamp(true)}if((isSequentialPalette(encoding.palette)||isDivergingPalette(encoding.palette))&&valueField){const valueExtent=d3.extent(data,d=>Number(d[valueField]));const colorScale=d3.scaleLinear().domain([valueExtent[0],valueExtent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb);const categoryToValue=new Map(data.map(d=>[d[field],Number(d[valueField])]));return category=>{const value=categoryToValue.get(category);return value!==void 0?colorScale(value):palette2[0]}}if(encoding.type==="quantitative"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleLinear().domain([extent[0],extent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb)}const domain2=[...new Set(data.map(d=>d[field]))];return d3.scaleOrdinal().domain(domain2).range(palette2)}}if(encoding.scale?.domain&&encoding.scale?.range){if(encoding.type==="quantitative"){return d3.scaleLinear().domain(encoding.scale.domain).range(encoding.scale.range).interpolate(d3.interpolateRgb)}return d3.scaleOrdinal().domain(encoding.scale.domain).range(encoding.scale.range)}if(encoding.type==="quantitative"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleSequential(d3.interpolateViridis).domain(extent)}const domain=[...new Set(data.map(d=>d[field]))];let palette=[...categorical];if(domain.length>palette.length){const extra=d3.quantize(d3.interpolateRainbow,domain.length-palette.length+1);palette=palette.concat(extra)}return d3.scaleOrdinal().domain(domain).range(palette)}function contrastText(bgColor){const rgb=parseColor(bgColor);if(!rgb)return"#ffffff";const luminance=relativeLuminance(rgb[0],rgb[1],rgb[2]);return luminance>.18?"#1a1a2e":"#ffffff"}function contrastTextMuted(bgColor){const rgb=parseColor(bgColor);if(!rgb)return"rgba(255,255,255,0.7)";const luminance=relativeLuminance(rgb[0],rgb[1],rgb[2]);return luminance>.18?"rgba(26,26,46,0.6)":"rgba(255,255,255,0.7)"}function parseColor(color){const hexMatch=color.match(/^#([0-9a-f]{3,8})$/i);if(hexMatch){let hex=hexMatch[1];if(hex.length===3)hex=hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];return[parseInt(hex.substring(0,2),16),parseInt(hex.substring(2,4),16),parseInt(hex.substring(4,6),16)]}const rgbMatch=color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);if(rgbMatch){return[Number(rgbMatch[1]),Number(rgbMatch[2]),Number(rgbMatch[3])]}return null}function relativeLuminance(r,g,b){const[rs,gs,bs]=[r/255,g/255,b/255].map(c=>c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4));return .2126*rs+.7152*gs+.0722*bs}function isAllZeros(data,field){return data.every(d=>Number(d[field])===0)}var tooltipEl=null;var tooltipContainer=null;function createTooltip(container){tooltipContainer=container;if(tooltipEl&&document.body.contains(tooltipEl)){return tooltipEl}tooltipEl=document.createElement("div");tooltipEl.style.cssText=`
+    position: fixed;
+    pointer-events: none;
+    background: #1e2028;
+    color: ${TEXT_COLOR};
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: Inter, system-ui, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    border: 1px solid #2d3041;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.15s;
+    max-width: 300px;
+    line-height: 1.5;
+  `;document.body.appendChild(tooltipEl);return tooltipEl}function positionTooltip(tooltip,event){const gap=12;const tw=tooltip.offsetWidth;const th=tooltip.offsetHeight;const vh=window.innerHeight;const rect=tooltipContainer?.getBoundingClientRect();const midX=rect?rect.left+rect.width/2:window.innerWidth/2;let left=event.clientX>midX?event.clientX-tw-gap:event.clientX+gap;let top=event.clientY-gap;if(top+th>vh)top=event.clientY-th-gap;if(left<0)left=0;if(top<0)top=0;tooltip.style.left=left+"px";tooltip.style.top=top+"px"}function showTooltip(tooltip,html,event){tooltip.innerHTML=html;tooltip.style.opacity="1";positionTooltip(tooltip,event)}function hideTooltip(tooltip){tooltip.style.opacity="0"}function formatValue(v){if(Math.abs(v)>=1e12)return(v/1e12).toFixed(1)+"T";if(Math.abs(v)>=1e9)return(v/1e9).toFixed(1)+"B";if(Math.abs(v)>=1e6)return(v/1e6).toFixed(1)+"M";if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+"K";if(Math.abs(v)<1&&v!==0){const precision=Math.max(2,Math.ceil(-Math.log10(Math.abs(v)))+1);return v.toFixed(Math.min(precision,6))}return Number.isInteger(v)?v.toFixed(0):v.toFixed(1)}function renderTreemap(container,spec){const{config,encoding,data}=spec;const categoryField=config.categoryField||encoding.color?.field||encoding.label?.field;const valueField=config.valueField||encoding.size?.field;const parentField=config.parentField||null;const padding=config.padding??2;const width=container.clientWidth||800;const height=container.clientHeight||500;const titleHeight=spec.title?36:0;const contentPadding=8;const innerWidth=width-contentPadding*2;const innerHeight=height-titleHeight-contentPadding*2;const wrapper=document.createElement("div");wrapper.style.cssText=`
+    position: relative;
+    width: ${width}px;
+    height: ${height}px;
+    background: ${DARK_BG};
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: Inter, system-ui, sans-serif;
+  `;container.appendChild(wrapper);if(spec.title){const titleEl=document.createElement("div");titleEl.style.cssText=`
+      text-align: center;
+      color: ${TEXT_COLOR};
+      font-size: 14px;
+      font-weight: 600;
+      line-height: ${titleHeight}px;
+      height: ${titleHeight}px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 10px;
+    `;titleEl.textContent=spec.title;titleEl.title=spec.title;wrapper.appendChild(titleEl)}const contentArea=document.createElement("div");contentArea.style.cssText=`
+    position: relative;
+    width: ${innerWidth}px;
+    height: ${innerHeight}px;
+    margin: 0 ${contentPadding}px ${contentPadding}px;
+  `;wrapper.appendChild(contentArea);const tooltip=createTooltip(container);if(valueField&&isAllZeros(data,valueField)){const emptyDiv=document.createElement("div");emptyDiv.style.cssText=`
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: ${innerWidth}px;
+      height: ${innerHeight}px;
+      color: ${TEXT_MUTED};
+      font-size: 14px;
+      font-family: Inter, system-ui, sans-serif;
+    `;emptyDiv.textContent="All values are zero";contentArea.appendChild(emptyDiv);return}const root=buildHierarchy(data,categoryField,valueField,parentField,config);const treemapLayout=d3.treemap().size([innerWidth,innerHeight]).padding(padding).round(true);treemapLayout(root);const colorScale=buildColorScale(encoding.color,data);const isQuantitativeColor=encoding.color?.type==="quantitative";const colorField=encoding.color?.field;const leaves=root.leaves();for(const leaf of leaves){const cellW=Math.max(leaf.x1-leaf.x0,0);const cellH=Math.max(leaf.y1-leaf.y0,0);if(cellW<1||cellH<1)continue;const fillColor=isQuantitativeColor?colorScale(Number(leaf.data._data?.[colorField]??leaf.value)):parentField&&leaf.parent?.data?.name?colorScale(leaf.parent.data.name):colorScale(leaf.data.name);const cell=document.createElement("div");cell.style.cssText=`
+      position: absolute;
+      left: ${leaf.x0}px;
+      top: ${leaf.y0}px;
+      width: ${cellW}px;
+      height: ${cellH}px;
+      background: ${fillColor};
+      border-radius: 3px;
+      border: ${config.borderWidth??1}px solid ${DARK_BG};
+      opacity: 1;
+      overflow: hidden;
+      box-sizing: border-box;
+      cursor: default;
+    `;if(cellW>30&&cellH>20){const textPad=Math.min(6,cellW*.08);const labelColor=contrastText(fillColor);const valueColor=contrastTextMuted(fillColor);const textContainer=document.createElement("div");textContainer.style.cssText=`
+        padding: ${textPad}px;
+        overflow: hidden;
+        height: 100%;
+        box-sizing: border-box;
+      `;if(config.showLabels!==false){const fontSize=cellW>80?12:10;const charWidth=fontSize*.6;const maxChars=Math.max(2,Math.floor((cellW-textPad*2)/charWidth));const rawName=leaf.data.name;const displayName=rawName.length>maxChars?rawName.slice(0,maxChars-1)+"\u2026":rawName;const label=document.createElement("div");label.style.cssText=`
+          color: ${labelColor};
+          font-weight: 700;
+          font-size: ${fontSize}px;
+          line-height: 1.25;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        `;label.textContent=displayName;if(rawName.length>maxChars)label.title=rawName;textContainer.appendChild(label)}if(cellW>40&&cellH>36){const value=document.createElement("div");value.style.cssText=`
+          color: ${valueColor};
+          font-weight: 400;
+          font-size: ${cellW>80?"11px":"9px"};
+          line-height: 1.3;
+          margin-top: 2px;
+        `;value.textContent=formatValue(leaf.value);textContainer.appendChild(value)}cell.appendChild(textContainer)}cell.addEventListener("mouseover",event=>{cell.style.filter="brightness(1.15)";cell.style.outline="2px solid #fff";cell.style.outlineOffset="-2px";cell.style.zIndex="10";const parentName=parentField&&leaf.parent?.data?.name?leaf.parent.data.name+" > ":"";showTooltip(tooltip,`<strong>${parentName}${leaf.data.name}</strong><br/>${valueField}: ${formatValue(leaf.value)}`,event)});cell.addEventListener("mousemove",event=>{positionTooltip(tooltip,event)});cell.addEventListener("mouseout",()=>{cell.style.filter="";cell.style.outline="none";cell.style.zIndex="";hideTooltip(tooltip)});contentArea.appendChild(cell)}}function buildHierarchy(data,categoryField,valueField,parentField,config){const allVals=data.map(d=>Number(d[valueField])||0).filter(v=>v>0);const maxVal=allVals.length>0?Math.max(...allVals):0;const minVisible=maxVal*.02;const clampVal=v=>v>0&&v<minVisible?minVisible:v;if(parentField){const childField=config.childField||categoryField;const parents=[...new Set(data.map(d=>d[parentField]))];const hierarchy2={name:"root",children:parents.map(p=>({name:p,children:data.filter(d=>d[parentField]===p).map(d=>({name:d[childField]||d[categoryField]||d[parentField],value:clampVal(Number(d[valueField])||0),_data:d}))}))};return d3.hierarchy(hierarchy2).sum(d=>d.value).sort((a,b)=>b.value-a.value)}const hierarchy={name:"root",children:data.map(d=>({name:d[categoryField],value:clampVal(Number(d[valueField])||0),_data:d}))};return d3.hierarchy(hierarchy).sum(d=>d.value).sort((a,b)=>b.value-a.value)}return __toCommonJS(treemap_render_exports);})();
+
+var renderChart = __dolex.renderChart;
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var container = document.getElementById('chart');
+  var spec = window.__SPEC__;
+
+  if (!spec || !spec.data || !spec.data.length) {
+    container.innerHTML = '<p style="color:#ef4444;padding:20px;">No data provided</p>';
+    return;
+  }
+
+  var lastWidth = 0;
+
+  function doRender() {
+    try {
+      container.innerHTML = '';
+      renderChart(container, spec);
+      lastWidth = container.clientWidth;
+      try {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        if (h > 0 && window.parent !== window) {
+          window.parent.postMessage({ type: 'dolex-resize', height: h }, '*');
+        }
+      } catch(e) {}
+    } catch (err) {
+      console.error('Render error:', err);
+      container.innerHTML =
+        '<div style="color:#ef4444;padding:20px;font-family:monospace;">' +
+        '<p><strong>Render error:</strong> ' + spec.pattern + '</p>' +
+        '<pre style="font-size:11px;opacity:0.8;white-space:pre-wrap;">' +
+        err.message + '\n' + err.stack + '</pre></div>';
+    }
+  }
+
+  requestAnimationFrame(doRender);
+
+  var resizeTimer;
+  var ro = new ResizeObserver(function(entries) {
+    var w = entries[0].contentRect.width;
+    if (w > 0 && Math.abs(w - lastWidth) > 20) {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(doRender, 150);
+    }
+  });
+  ro.observe(container);
+});
+</script>
+</body>
+</html>
