@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Gen 1 Starter Showdown</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0f1117;
+  color: #d1d5db;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+#chart {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+</style>
+</head>
+<body>
+<div id="chart"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+
+<script>
+window.__SPEC__ = {"pattern":"radar","title":"Gen 1 Starter Showdown","data":[{"Pokemon":"Bulbasaur","HP":45,"Attack":49,"Defense":49,"Sp_Atk":65,"Sp_Def":65,"Speed":45,"_norm_HP":1,"_norm_Attack":0.25,"_norm_Defense":0.2727272727272727,"_norm_Sp_Atk":1,"_norm_Sp_Def":1,"_norm_Speed":0.09090909090909091},{"Pokemon":"Charmander","HP":39,"Attack":52,"Defense":43,"Sp_Atk":60,"Sp_Def":50,"Speed":65,"_norm_HP":0,"_norm_Attack":1,"_norm_Defense":0,"_norm_Sp_Atk":0.6666666666666666,"_norm_Sp_Def":0,"_norm_Speed":1},{"Pokemon":"Squirtle","HP":44,"Attack":48,"Defense":65,"Sp_Atk":50,"Sp_Def":64,"Speed":43,"_norm_HP":0.8333333333333334,"_norm_Attack":0,"_norm_Defense":1,"_norm_Sp_Atk":0,"_norm_Sp_Def":0.9333333333333333,"_norm_Speed":0}],"encoding":{"angle":{"field":"_dimension","type":"nominal"},"radius":{"field":"_value","type":"quantitative"},"color":{"field":"Pokemon","type":"nominal","title":"Pokemon","palette":"categorical"}},"config":{"categoryField":"Pokemon","dimensions":["HP","Attack","Defense","Sp_Atk","Sp_Def","Speed"],"showLabels":true,"showGrid":true,"gridLevels":5,"fillOpacity":0.2,"strokeWidth":2,"dotRadius":4,"subtitle":"Three different philosophies: special tank, speedy attacker, physical wall"}};
+</script>
+
+<script>
+"use strict";var __dolex=(()=>{var __defProp=Object.defineProperty;var __getOwnPropDesc=Object.getOwnPropertyDescriptor;var __getOwnPropNames=Object.getOwnPropertyNames;var __hasOwnProp=Object.prototype.hasOwnProperty;var __export=(target,all)=>{for(var name in all)__defProp(target,name,{get:all[name],enumerable:true})};var __copyProps=(to,from,except,desc)=>{if(from&&typeof from==="object"||typeof from==="function"){for(let key of __getOwnPropNames(from))if(!__hasOwnProp.call(to,key)&&key!==except)__defProp(to,key,{get:()=>from[key],enumerable:!(desc=__getOwnPropDesc(from,key))||desc.enumerable})}return to};var __toCommonJS=mod=>__copyProps(__defProp({},"__esModule",{value:true}),mod);var radar_render_exports={};__export(radar_render_exports,{renderChart:()=>renderRadar});var categorical=["#6280c1","#c99a3e","#48a882","#c46258","#5ea4c8","#9e74bf","#c88450","#3ea898","#b85e78","#85a63e","#807cba","#b09838"];var sequential={blue:["#e8f0fe","#c5d9fc","#9cbcf8","#6e9cf4","#4a7eec","#2f63d9","#1d4cb8","#143893","#0d2668"],green:["#e2f5ec","#b6e6d0","#7ed4ae","#4cc08c","#2ba86f","#1e8d58","#157244","#0d5833","#084024"],purple:["#f0e8ff","#d8c6fd","#bd9efa","#a278f3","#8755e8","#6d3dd1","#5630ab","#402485","#2d1961"],warm:["#fef0e2","#fdd9b4","#fbbd7e","#f79e4d","#ef7e25","#d4620f","#ac4a0a","#843608","#5e2506"]};var diverging={blueRed:["#2166ac","#4393c3","#6db4d5","#a6d1e8","#e0e0e0","#f1b0a0","#e07060","#ca3832","#b2182b"],greenPurple:["#1b7837","#41a055","#73c378","#a8dda0","#e0e0e0","#c4a5d9","#9970be","#7640a0","#5e2d84"],tealOrange:["#0d6b6e","#2a9191","#54b4b0","#92d4cc","#e0e0e0","#f5c28a","#e69b44","#c87422","#a35212"],redGreen:["#b84040","#c85e5e","#d48080","#daa8a8","#c8c8c8","#a0c8a0","#68a868","#489048","#307430"]};var darkTheme={background:"#0f1117",surface:"#161822",surfaceRaised:"#1e2028",axis:"#4b5563",grid:"#1f2937",border:"#2a2d3a",text:"#e2e5eb",textMuted:"#9ca3af",textDim:"#6b7280",plotArea:"#13151d",overlay:"rgba(0, 0, 0, 0.6)"};var colorSchemes={"traffic-light":["#ef4444","#f59e0b","#10b981"],"profit-loss":["#ef4444","#6b7280","#10b981"],temperature:["#3b82f6","#9ca3af","#f59e0b"]};var DARK_BG=darkTheme.background;var AXIS_COLOR=darkTheme.axis;var GRID_COLOR=darkTheme.grid;var TEXT_COLOR=darkTheme.text;var TEXT_MUTED=darkTheme.textMuted;var DEFAULT_MARGINS={top:40,right:30,bottom:50,left:60};function createSvg(container,spec,marginOverrides){const margin={...DEFAULT_MARGINS,...marginOverrides};const width=container.clientWidth||800;const height=container.clientHeight||500;const innerWidth=width-margin.left-margin.right;const innerHeight=height-margin.top-margin.bottom;const svg=d3.select(container).append("svg").attr("width",width).attr("height",height).style("background",DARK_BG).style("border-radius","8px");if(spec.title){const titleEl=svg.append("text").attr("x",width/2).attr("y",24).attr("text-anchor","middle").attr("fill",TEXT_COLOR).attr("font-size","14px").attr("font-weight","600").attr("font-family","Inter, system-ui, sans-serif").text(spec.title);truncateTitle(titleEl,spec.title,width-20)}const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);return{svg,g,dims:{width,height,innerWidth,innerHeight,margin}}}var PALETTE_MAP={categorical,...sequential,...diverging,...colorSchemes};function resolvePalette(name){const palette=PALETTE_MAP[name];return palette?[...palette]:null}function isSequentialPalette(name){return!!name&&name in sequential}function isDivergingPalette(name){return!!name&&name in diverging}function buildColorScale(encoding,data,valueField){if(!encoding||!encoding.field){return()=>categorical[0]}const field=encoding.field;if(encoding.highlight&&encoding.highlight.values.length>0){const normalize=v=>String(v).trim().toLowerCase();const dataValues=new Set(data.map(d=>normalize(d[field])));const hasMatchingValues=encoding.highlight.values.some(v=>dataValues.has(normalize(v)));if(hasMatchingValues){const highlightSet=new Set(encoding.highlight.values.map(v=>normalize(v)));const highlightColors=Array.isArray(encoding.highlight.color)?encoding.highlight.color:encoding.highlight.color?[encoding.highlight.color]:[categorical[0]];const mutedColor=encoding.highlight.mutedColor||"#6b7280";const mutedOpacity=encoding.highlight.mutedOpacity??1;return value=>{if(highlightSet.has(normalize(value))){const idx=encoding.highlight.values.findIndex(v=>normalize(v)===normalize(value));return highlightColors[idx%highlightColors.length]}if(mutedOpacity<1){const hex=mutedColor.replace("#","");const r=parseInt(hex.substring(0,2),16);const g=parseInt(hex.substring(2,4),16);const b=parseInt(hex.substring(4,6),16);return`rgba(${r}, ${g}, ${b}, ${mutedOpacity})`}return mutedColor}}}if(encoding.palette){const palette2=resolvePalette(encoding.palette);if(palette2){if(isDivergingPalette(encoding.palette)&&encoding.type==="quantitative"){const values=data.map(d=>Number(d[field]));const maxAbs=Math.max(Math.abs(d3.min(values)),Math.abs(d3.max(values)))||1;const mid=Math.floor(palette2.length/2);return d3.scaleLinear().domain([-maxAbs,0,maxAbs]).range([palette2[0],palette2[mid],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb).clamp(true)}if((isSequentialPalette(encoding.palette)||isDivergingPalette(encoding.palette))&&valueField){const valueExtent=d3.extent(data,d=>Number(d[valueField]));const colorScale=d3.scaleLinear().domain([valueExtent[0],valueExtent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb);const categoryToValue=new Map(data.map(d=>[d[field],Number(d[valueField])]));return category=>{const value=categoryToValue.get(category);return value!==void 0?colorScale(value):palette2[0]}}if(encoding.type==="quantitative"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleLinear().domain([extent[0],extent[1]]).range([palette2[0],palette2[palette2.length-1]]).interpolate(d3.interpolateRgb)}const domain2=[...new Set(data.map(d=>d[field]))];return d3.scaleOrdinal().domain(domain2).range(palette2)}}if(encoding.scale?.domain&&encoding.scale?.range){if(encoding.type==="quantitative"){return d3.scaleLinear().domain(encoding.scale.domain).range(encoding.scale.range).interpolate(d3.interpolateRgb)}return d3.scaleOrdinal().domain(encoding.scale.domain).range(encoding.scale.range)}if(encoding.type==="quantitative"){const extent=d3.extent(data,d=>Number(d[field]));return d3.scaleSequential(d3.interpolateViridis).domain(extent)}const domain=[...new Set(data.map(d=>d[field]))];let palette=[...categorical];if(domain.length>palette.length){const extra=d3.quantize(d3.interpolateRainbow,domain.length-palette.length+1);palette=palette.concat(extra)}return d3.scaleOrdinal().domain(domain).range(palette)}function truncateLabel(label,maxLength=25){const str=String(label);if(str.length<=maxLength)return str;return str.slice(0,maxLength-1)+"\u2026"}function truncateTitle(textEl,fullText,maxWidth){const node=textEl.node();if(!node||!node.getComputedTextLength)return;if(node.getComputedTextLength()<=maxWidth)return;let lo=0;let hi=fullText.length;while(lo<hi){const mid=lo+hi+1>>1;node.textContent=fullText.slice(0,mid)+"\u2026";if(node.getComputedTextLength()<=maxWidth){lo=mid}else{hi=mid-1}}node.textContent=lo>0?fullText.slice(0,lo)+"\u2026":"\u2026";textEl.append("title").text(fullText)}var tooltipEl=null;var tooltipContainer=null;function createTooltip(container){tooltipContainer=container;if(tooltipEl&&document.body.contains(tooltipEl)){return tooltipEl}tooltipEl=document.createElement("div");tooltipEl.style.cssText=`
+    position: fixed;
+    pointer-events: none;
+    background: #1e2028;
+    color: ${TEXT_COLOR};
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: Inter, system-ui, sans-serif;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    border: 1px solid #2d3041;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.15s;
+    max-width: 300px;
+    line-height: 1.5;
+  `;document.body.appendChild(tooltipEl);return tooltipEl}function positionTooltip(tooltip,event){const gap=12;const tw=tooltip.offsetWidth;const th=tooltip.offsetHeight;const vh=window.innerHeight;const rect=tooltipContainer?.getBoundingClientRect();const midX=rect?rect.left+rect.width/2:window.innerWidth/2;let left=event.clientX>midX?event.clientX-tw-gap:event.clientX+gap;let top=event.clientY-gap;if(top+th>vh)top=event.clientY-th-gap;if(left<0)left=0;if(top<0)top=0;tooltip.style.left=left+"px";tooltip.style.top=top+"px"}function showTooltip(tooltip,html,event){tooltip.innerHTML=html;tooltip.style.opacity="1";positionTooltip(tooltip,event)}function hideTooltip(tooltip){tooltip.style.opacity="0"}function smartTruncateLabels(labels,maxLen){if(labels.every(l=>l.length<=maxLen))return labels;const prefixLen=findCommonAffixLength(labels,"prefix");const suffixLen=findCommonAffixLength(labels,"suffix");const hasSharedAffix=prefixLen+suffixLen>5;if(hasSharedAffix){return labels.map(l=>{if(l.length<=maxLen)return l;const uniquePart=l.slice(prefixLen,l.length-suffixLen||void 0);if(uniquePart.length<=maxLen-2){return"\u2026"+uniquePart+"\u2026"}const keep=maxLen-2;return"\u2026"+uniquePart.slice(0,keep)+"\u2026"})}return labels.map(l=>{if(l.length<=maxLen)return l;const keep=maxLen-1;const front=Math.ceil(keep*.5);const back=keep-front;return back>0?l.slice(0,front)+"\u2026"+l.slice(-back):l.slice(0,keep)+"\u2026"})}function findCommonAffixLength(strings,direction){if(strings.length<=1)return 0;const get=direction==="prefix"?(s,i)=>s[i]:(s,i)=>s[s.length-1-i];const minLen=Math.min(...strings.map(s=>s.length));let len=0;for(let i=0;i<minLen;i++){const ch=get(strings[0],i);if(strings.every(s=>get(s,i)===ch)){len++}else{break}}return len}function createLegend(source,options){const shape=options?.shape??"square";const callbacks=options?.callbacks;let entries;if(Array.isArray(source)&&source.length>0&&source[0]?.label!==void 0){entries=source}else{const domain=source.domain?.()??[];entries=domain.map(label=>({label:String(label),color:source(label)}))}if(!entries.length){return document.createElement("div")}const maxItems=options?.maxItems??12;let overflowCount=0;if(entries.length>maxItems){overflowCount=entries.length-(maxItems-1);entries=entries.slice(0,maxItems-1)}const maxLabelLen=20;const displayLabels=smartTruncateLabels(entries.map(e=>e.label),maxLabelLen);const legend=document.createElement("div");legend.style.cssText=`
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px;
+    padding: 6px 12px 8px; font-family: Inter, system-ui, sans-serif;
+    font-size: 11px; line-height: 1;
+  `;entries.forEach((entry,idx)=>{const item=document.createElement("div");item.style.cssText=callbacks?"display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; cursor: pointer; transition: opacity 0.15s;":"display: flex; align-items: center; gap: 5px; white-space: nowrap;";item.setAttribute("data-series",entry.label);const swatch=document.createElement("span");if(shape==="circle"){swatch.style.cssText=`
+        width: 8px; height: 8px; border-radius: 50%;
+        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;
+      `}else if(shape==="line"){swatch.style.cssText=`
+        width: 16px; height: 3px; border-radius: 1px;
+        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;
+      `}else if(shape==="line-dot"){swatch.style.cssText=`
+        width: 16px; height: 2px; border-radius: 1px;
+        background: ${entry.color}; flex-shrink: 0; position: relative;
+        transition: transform 0.15s;
+      `;const dot=document.createElement("span");dot.style.cssText=`
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6px; height: 6px; border-radius: 50%;
+        background: ${entry.color}; border: 1px solid ${DARK_BG};
+      `;swatch.appendChild(dot)}else{swatch.style.cssText=`
+        width: 10px; height: 10px; border-radius: 2px;
+        background: ${entry.color}; flex-shrink: 0; transition: transform 0.15s;
+      `}const text=document.createElement("span");text.style.color=TEXT_MUTED;text.textContent=displayLabels[idx];if(entry.label.length>maxLabelLen)text.title=entry.label;item.appendChild(swatch);item.appendChild(text);if(entry.extra){const extra=document.createElement("span");extra.style.color=TEXT_MUTED;extra.style.opacity="0.7";extra.textContent=entry.extra;item.appendChild(extra)}if(callbacks){item.addEventListener("mouseenter",()=>{swatch.style.transform=shape==="line"||shape==="line-dot"?"scaleY(2)":"scale(1.4)";callbacks.onHover?.(entry.label)});item.addEventListener("mouseleave",()=>{swatch.style.transform="";callbacks.onLeave?.()})}legend.appendChild(item)});if(overflowCount>0){const more=document.createElement("div");more.style.cssText="display: flex; align-items: center; gap: 5px; white-space: nowrap;";const moreText=document.createElement("span");moreText.style.cssText=`color: ${TEXT_MUTED}; opacity: 0.6; font-style: italic;`;moreText.textContent=`+${overflowCount} more`;more.appendChild(moreText);legend.appendChild(more)}return legend}function formatValue(v){if(Math.abs(v)>=1e12)return(v/1e12).toFixed(1)+"T";if(Math.abs(v)>=1e9)return(v/1e9).toFixed(1)+"B";if(Math.abs(v)>=1e6)return(v/1e6).toFixed(1)+"M";if(Math.abs(v)>=1e3)return(v/1e3).toFixed(1)+"K";if(Math.abs(v)<1&&v!==0){const precision=Math.max(2,Math.ceil(-Math.log10(Math.abs(v)))+1);return v.toFixed(Math.min(precision,6))}return Number.isInteger(v)?v.toFixed(0):v.toFixed(1)}function renderRadar(container,spec){const{config,data}=spec;const categoryField=config.categoryField||"entity";const dimensions=config.dimensions||[];const showLabels=config.showLabels!==false;const showGrid=config.showGrid!==false;const gridLevels=config.gridLevels||5;const fillOpacity=config.fillOpacity??.2;const strokeWidth=config.strokeWidth??2;const dotRadius=config.dotRadius??4;if(dimensions.length<3){container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#9ca3af;font-size:14px;font-family:Inter,system-ui,sans-serif;background:#0f1117;border-radius:8px;">Radar chart requires 3+ dimensions (got ${dimensions.length})</div>`;return}const hasLegend=data.length>1;container.innerHTML="";container.style.display="flex";container.style.flexDirection="column";container.style.overflow="hidden";const chartWrapper=document.createElement("div");chartWrapper.style.cssText="flex: 1; min-height: 0;";container.appendChild(chartWrapper);const containerWidth=container.clientWidth||500;const containerHeight=container.clientHeight||500;const isSmall=Math.min(containerWidth,containerHeight)<320;const labelMargin=isSmall?40:55;const{svg,g,dims}=createSvg(chartWrapper,spec,{top:spec.title?55:40,right:labelMargin,bottom:40,left:labelMargin});const tooltip=createTooltip(container);const radius=Math.min(dims.innerWidth,dims.innerHeight)/2;const cx=dims.innerWidth/2;const cy=dims.innerHeight/2;const center=g.append("g").attr("transform",`translate(${cx}, ${cy})`);const angleSlice=Math.PI*2/dimensions.length;let minVal=0;let maxVal=0;for(const row of data){for(const dim of dimensions){const v=Number(row[dim])||0;if(v<minVal)minVal=v;if(v>maxVal)maxVal=v}}if(maxVal===0&&minVal===0)maxVal=1;const rScale=d3.scaleLinear().domain([minVal,maxVal]).range([0,radius]);if(showGrid){for(let level=1;level<=gridLevels;level++){const r=radius/gridLevels*level;const points=dimensions.map((_,i)=>{const angle=angleSlice*i-Math.PI/2;return[r*Math.cos(angle),r*Math.sin(angle)]});center.append("polygon").attr("points",points.map(p=>p.join(",")).join(" ")).attr("fill","none").attr("stroke",GRID_COLOR).attr("stroke-width",.5);const labelVal=minVal+(maxVal-minVal)/gridLevels*level;center.append("text").attr("x",4).attr("y",-r).attr("fill",TEXT_MUTED).attr("font-size",isSmall?"8px":"9px").attr("font-family","Inter, system-ui, sans-serif").attr("opacity",.6).text(formatValue(Math.round(labelVal*100)/100))}}if(minVal<0){const zeroR=rScale(0);const zeroPoints=dimensions.map((_,i)=>{const angle=angleSlice*i-Math.PI/2;return[zeroR*Math.cos(angle),zeroR*Math.sin(angle)]});center.append("polygon").attr("points",zeroPoints.map(p=>p.join(",")).join(" ")).attr("fill","none").attr("stroke","#ffffff").attr("stroke-width",1).attr("stroke-dasharray","4,3").attr("opacity",.5)}const maxLabelLen=isSmall?10:16;dimensions.forEach((dim,i)=>{const angle=angleSlice*i-Math.PI/2;const lineX=radius*Math.cos(angle);const lineY=radius*Math.sin(angle);center.append("line").attr("x1",0).attr("y1",0).attr("x2",lineX).attr("y2",lineY).attr("stroke",AXIS_COLOR).attr("stroke-width",.5);if(showLabels){const labelR=radius+(isSmall?10:14);const lx=labelR*Math.cos(angle);const ly=labelR*Math.sin(angle);const anchor=Math.abs(lx)<1?"middle":lx>0?"start":"end";center.append("text").attr("x",lx).attr("y",ly).attr("text-anchor",anchor).attr("dominant-baseline","central").attr("fill",TEXT_MUTED).attr("font-size",isSmall?"9px":"11px").attr("font-family","Inter, system-ui, sans-serif").text(truncateLabel(dim,maxLabelLen))}});const entityNames=data.map(d=>String(d[categoryField]));const colorEncoding=data.length>1?{field:categoryField,type:"nominal"}:void 0;const colorScale=buildColorScale(colorEncoding,data);function getPolygonPoints(row){return dimensions.map((dim,i)=>{const val=Number(row[dim])||0;const angle=angleSlice*i-Math.PI/2;const r=rScale(val);return[r*Math.cos(angle),r*Math.sin(angle)]})}const effectiveDotRadius=isSmall?Math.min(dotRadius,3):dotRadius;let activeEntity=null;function highlightEntity(entity){activeEntity=entity;if(entity===null){center.selectAll(".radar-polygon").attr("fill-opacity",fillOpacity).attr("stroke-width",strokeWidth);center.selectAll(".radar-dot").attr("opacity",1)}else{center.selectAll(".radar-polygon").each(function(){const el=d3.select(this);const isMatch=el.attr("data-entity")===entity;el.attr("fill-opacity",isMatch?Math.min(fillOpacity+.15,.5):fillOpacity*.3).attr("stroke-width",isMatch?strokeWidth+1:strokeWidth*.5)});center.selectAll(".radar-dot").each(function(){const el=d3.select(this);const isMatch=el.attr("data-entity")===entity;el.attr("opacity",isMatch?1:.15)})}}data.forEach((row,entityIdx)=>{const entity=String(row[categoryField]);const color=colorScale(entity);const points=getPolygonPoints(row);const pointsStr=points.map(p=>p.join(",")).join(" ");center.append("polygon").attr("class","radar-polygon").attr("data-entity",entity).attr("points",pointsStr).attr("fill",color).attr("fill-opacity",fillOpacity).attr("stroke",color).attr("stroke-width",strokeWidth).attr("stroke-linejoin","round").style("cursor","pointer").on("mouseover",event=>{highlightEntity(entity);const dimValues=dimensions.map(dim=>{const val=Number(row[dim])||0;return`${truncateLabel(dim,14)}: ${formatValue(val)}`}).join("<br/>");showTooltip(tooltip,`<strong>${entity}</strong><br/>${dimValues}`,event)}).on("mousemove",event=>{positionTooltip(tooltip,event)}).on("mouseout",()=>{highlightEntity(null);hideTooltip(tooltip)});if(effectiveDotRadius>0){points.forEach((p,i)=>{const dim=dimensions[i];const val=Number(row[dim])||0;center.append("circle").attr("class","radar-dot").attr("data-entity",entity).attr("cx",p[0]).attr("cy",p[1]).attr("r",effectiveDotRadius).attr("fill",color).attr("stroke",DARK_BG).attr("stroke-width",1.5).style("cursor","pointer").on("mouseover",event=>{highlightEntity(entity);d3.select(event.currentTarget).attr("r",effectiveDotRadius*1.5);showTooltip(tooltip,`<strong>${entity}</strong><br/>${dim}: ${formatValue(val)}`,event)}).on("mousemove",event=>{positionTooltip(tooltip,event)}).on("mouseout",event=>{highlightEntity(null);d3.select(event.currentTarget).attr("r",effectiveDotRadius);hideTooltip(tooltip)})})}});if(hasLegend){const legendDiv=createLegend(colorScale,{shape:"circle",callbacks:{onHover:entity=>highlightEntity(entity),onLeave:()=>highlightEntity(null)}});container.appendChild(legendDiv)}}return __toCommonJS(radar_render_exports);})();
+
+var renderChart = __dolex.renderChart;
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var container = document.getElementById('chart');
+  var spec = window.__SPEC__;
+
+  if (!spec || !spec.data || !spec.data.length) {
+    container.innerHTML = '<p style="color:#ef4444;padding:20px;">No data provided</p>';
+    return;
+  }
+
+  var lastWidth = 0;
+
+  function doRender() {
+    try {
+      container.innerHTML = '';
+      renderChart(container, spec);
+      lastWidth = container.clientWidth;
+      try {
+        var h = document.documentElement.scrollHeight || document.body.scrollHeight;
+        if (h > 0 && window.parent !== window) {
+          window.parent.postMessage({ type: 'dolex-resize', height: h }, '*');
+        }
+      } catch(e) {}
+    } catch (err) {
+      console.error('Render error:', err);
+      container.innerHTML =
+        '<div style="color:#ef4444;padding:20px;font-family:monospace;">' +
+        '<p><strong>Render error:</strong> ' + spec.pattern + '</p>' +
+        '<pre style="font-size:11px;opacity:0.8;white-space:pre-wrap;">' +
+        err.message + '\n' + err.stack + '</pre></div>';
+    }
+  }
+
+  requestAnimationFrame(doRender);
+
+  var resizeTimer;
+  var ro = new ResizeObserver(function(entries) {
+    var w = entries[0].contentRect.width;
+    if (w > 0 && Math.abs(w - lastWidth) > 20) {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(doRender, 150);
+    }
+  });
+  ro.observe(container);
+});
+</script>
+</body>
+</html>
